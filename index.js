@@ -7,19 +7,15 @@ const CHAT_ID = process.env.CHAT_ID;
 let ultimoNumero = null;
 
 async function enviarTelegram(msg) {
-  try {
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: CHAT_ID,
-        text: msg,
-        parse_mode: "HTML"
-      })
-    });
-  } catch (err) {
-    console.log("Erro Telegram:", err.message);
-  }
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: CHAT_ID,
+      text: msg,
+      parse_mode: "HTML"
+    })
+  });
 }
 
 async function iniciar() {
@@ -33,23 +29,31 @@ async function iniciar() {
   const page = await browser.newPage();
 
   await page.goto("https://blaze.bet.br/pt/games/double", {
-    waitUntil: "networkidle2"
+    waitUntil: "domcontentloaded"
   });
 
-  console.log("Blaze conectada. Monitorando...");
+  console.log("Aguardando roleta carregar...");
+
+  await page.waitForSelector(".entry", { timeout: 60000 });
+
+  console.log("Roleta detectada. Monitorando...");
 
   setInterval(async () => {
     try {
       const resultado = await page.evaluate(() => {
-        const todos = document.querySelectorAll(".entry .sm-box");
-console.log("Total encontrados:", todos.length);
-        if (!el) return null;
 
-        let numero = el.innerText.trim();
+        const entradas = document.querySelectorAll(".entry");
+        if (!entradas.length) return null;
+
+        const ultima = entradas[0];
+        const box = ultima.querySelector(".sm-box");
+        if (!box) return null;
+
+        let numero = box.innerText.trim();
         let cor = "⚫";
 
-        if (el.classList.contains("red")) cor = "🔴";
-        if (el.classList.contains("white")) {
+        if (box.classList.contains("red")) cor = "🔴";
+        if (box.classList.contains("white")) {
           numero = "0";
           cor = "⚪";
         }
@@ -57,6 +61,7 @@ console.log("Total encontrados:", todos.length);
         if (!numero) return null;
 
         return { numero, cor };
+
       });
 
       if (!resultado) return;
@@ -68,11 +73,11 @@ console.log("Total encontrados:", todos.length);
       console.log("Novo resultado:", resultado.numero, resultado.cor);
 
       await enviarTelegram(
-        `🎯 <b>Novo Resultado</b>\n\n🔢 ${resultado.numero}\n🎨 ${resultado.cor}`
+        `🚀 <b>SERVER 24H</b>\n\n🎯 Novo Resultado\n🔢 ${resultado.numero}\n🎨 ${resultado.cor}`
       );
 
     } catch (err) {
-      console.log("Erro leitura:", err.message);
+      console.log("Erro:", err.message);
     }
   }, 2000);
 }
