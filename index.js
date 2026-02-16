@@ -1,81 +1,79 @@
-import express from 'express';
-import fs from 'fs';
+import puppeteer from "puppeteer";
+import fetch from "node-fetch";
 
-const app = express();
-app.use(express.json());
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
+const CHAT_ID = process.env.CHAT_ID;
 
-const PORT = process.env.PORT || 8080;
-const DB_FILE = 'database.json';
+let ultimoNumero = null;
 
-if (!fs.existsSync(DB_FILE)) {
-  fs.writeFileSync(DB_FILE, JSON.stringify({ sinais: [] }, null, 2));
-}
-
-function readDB() {
-  return JSON.parse(fs.readFileSync(DB_FILE));
-}
-
-function saveDB(data) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-}
-
-app.get('/', (req, res) => {
-  res.json({ status: 'Double IA Backend Online 🚀' });
-});
-
-app.post('/sinal', (req, res) => {
-  const { horario, cor } = req.body;
-  const db = readDB();
-
-  db.sinais.push({
-    horario,
-    cor_sinal: cor,
-    resultado: null,
-    criado_em: new Date()
-  });
-
-  saveDB(db);
-
-  res.json({ mensagem: 'Sinal registrado' });
-});
-
-app.post('/resultado', (req, res) => {
-  const { horario, cor } = req.body;
-  const db = readDB();
-
-  const sinal = db.sinais.find(
-    s => s.horario === horario && s.resultado === null
-  );
-
-  if (!sinal) {
-    return res.status(404).json({ erro: 'Sinal não encontrado' });
+async function enviarTelegram(msg) {
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text: msg,
+        parse_mode: "HTML"
+      })
+    });
+  } catch (err) {
+    console.log("Erro Telegram:", err.message);
   }
+}
 
-  sinal.resultado = cor;
-  saveDB(db);
+async function iniciar() {
+  console.log("Iniciando Double IA 24h...");
 
-  res.json({ mensagem: 'Resultado registrado' });
-});
-
-app.get('/estatisticas', (req, res) => {
-  const db = readDB();
-
-  let wins = 0;
-  let loss = 0;
-
-  db.sinais.forEach(s => {
-    if (s.resultado) {
-      if (s.cor_sinal === s.resultado) wins++;
-      else loss++;
-    }
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
   });
 
-  const total = wins + loss;
-  const taxa = total > 0 ? ((wins / total) * 100).toFixed(2) : 0;
+  const page = await browser.newPage();
 
-  res.json({ total, wins, loss, taxa });
-});
+  await page.goto("https://blaze.bet.br/pt/games/double", {
+    waitUntil: "networkidle2"
+  });
 
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+  console.log("Blaze conectada. Monitorando...");
+
+  setInterval(async () => {
+    try {
+      const resultado = await page.evaluate(() => {
+        const el = document.querySelector(".entry .sm-box");
+        if (!el) return null;
+
+        let numero = el.innerText.trim();
+        let cor = "⚫";
+
+        if (el.classList.contains("red")) cor = "🔴";
+        if (el.classList.contains("white")) {
+          numero = "0";
+          cor = "⚪";
+        }
+
+        if (!numero) return null;
+
+        return { numero, cor };
+      });
+
+      if (!resultado) return;
+
+      if (resultado.numero === ultimoNumero) return;
+
+      ultimoNumero = resultado.numero;
+
+      console.log("Novo resultado:", resultado.numero, resultado.cor);
+
+      await enviarTelegram(
+        `🎯 <b>Novo Resultado</b>\n\n🔢 ${resultado.numero}\n🎨 ${resultado.cor}`
+      );
+
+    } catch (err) {
+      console.log("Erro leitura:", err.message);
+    }
+  }, 2000);
+}
+
+iniciar();
