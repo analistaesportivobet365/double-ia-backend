@@ -41,7 +41,8 @@ async function iniciar() {
   setInterval(async () => {
     try {
       const resultado = await page.evaluate(() => {
-        const el = document.querySelector(".entry .sm-box");
+        const todos = document.querySelectorAll(".entry .sm-box");
+console.log("Total encontrados:", todos.length);
         if (!el) return null;
 
         let numero = el.innerText.trim();
