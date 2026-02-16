@@ -1,12 +1,14 @@
 {
-  "name": "double-ia-backend",
+  "name": "backend-duplo-ia",
   "version": "1.0.0",
-  "type": "module",
+  "description": "Double IA 24h Server",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "puppeteer": "^22.0.0",
+    "node-fetch": "^3.3.2"
   }
 }
