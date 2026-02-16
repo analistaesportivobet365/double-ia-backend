@@ -7,15 +7,19 @@ const CHAT_ID = process.env.CHAT_ID;
 let ultimoNumero = null;
 
 async function enviarTelegram(msg) {
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: CHAT_ID,
-      text: msg,
-      parse_mode: "HTML"
-    })
-  });
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text: msg,
+        parse_mode: "HTML"
+      })
+    });
+  } catch (err) {
+    console.log("Erro Telegram:", err.message);
+  }
 }
 
 async function iniciar() {
@@ -23,18 +27,35 @@ async function iniciar() {
 
   const browser = await puppeteer.launch({
     headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-blink-features=AutomationControlled"
+    ]
   });
 
   const page = await browser.newPage();
 
+  await page.setUserAgent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+  );
+
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, "webdriver", {
+      get: () => false,
+    });
+  });
+
   await page.goto("https://blaze.bet.br/pt/games/double", {
-    waitUntil: "domcontentloaded"
+    waitUntil: "networkidle2"
   });
 
   console.log("Aguardando roleta carregar...");
 
-  await page.waitForSelector(".entry", { timeout: 60000 });
+  // Espera qualquer elemento da roleta aparecer
+  await page.waitForFunction(() => {
+    return document.querySelectorAll(".entry").length > 0;
+  }, { timeout: 60000 });
 
   console.log("Roleta detectada. Monitorando...");
 
@@ -53,6 +74,7 @@ async function iniciar() {
         let cor = "⚫";
 
         if (box.classList.contains("red")) cor = "🔴";
+
         if (box.classList.contains("white")) {
           numero = "0";
           cor = "⚪";
@@ -61,7 +83,6 @@ async function iniciar() {
         if (!numero) return null;
 
         return { numero, cor };
-
       });
 
       if (!resultado) return;
@@ -73,11 +94,11 @@ async function iniciar() {
       console.log("Novo resultado:", resultado.numero, resultado.cor);
 
       await enviarTelegram(
-        `🚀 <b>SERVER 24H</b>\n\n🎯 Novo Resultado\n🔢 ${resultado.numero}\n🎨 ${resultado.cor}`
+        `🚀 <b>SERVER 24H ATIVO</b>\n\n🎯 Novo Resultado\n🔢 ${resultado.numero}\n🎨 ${resultado.cor}`
       );
 
     } catch (err) {
-      console.log("Erro:", err.message);
+      console.log("Erro leitura:", err.message);
     }
   }, 2000);
 }
