@@ -1,18 +1,20 @@
 const express = require("express");
-const app = express();
 
+const app = express();
 app.use(express.json());
 
-// Página inicial
+const PORT = process.env.PORT || 3000;
+
+// Rota de teste
 app.get("/", (req, res) => {
-  res.send("🔥 Servidor Double IA online 24h!");
+  res.send("🚀 Double IA Backend online");
 });
 
 // Webhook para receber sinais
-app.post("/sinal", (req, res) => {
+app.post("/webhook", (req, res) => {
   const { numero, cor, horario } = req.body;
 
-  console.log("📩 Sinal recebido:");
+  console.log("🎯 Sinal recebido:");
   console.log("Número:", numero);
   console.log("Cor:", cor);
   console.log("Horário:", horario);
@@ -20,9 +22,6 @@ app.post("/sinal", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// 🔥 IMPORTANTE: usar porta do Railway
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log("🚀 Servidor rodando na porta", PORT);
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
