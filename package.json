@@ -1,14 +1,12 @@
 {
-  "name": "backend-duplo-ia",
+  "name": "blaze-reader",
   "version": "1.0.0",
-  "description": "Double IA 24h Server",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "puppeteer": "^22.0.0",
+    "puppeteer": "^21.0.0",
     "node-fetch": "^3.3.2"
   }
 }
